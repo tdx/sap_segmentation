@@ -1,0 +1,28 @@
+---
+version: '2.1'
+
+services:
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  sap-segmentation-test:
+    build:
+      context: ../..
+      dockerfile: cmd/test/Dockerfile
+    volumes:
+      - .:/go/src/sap_segmentation
+    environment:
+      DB_HOST: db
+      DB_NAME: postgres
+    depends_on:
+      db:
+        condition: service_healthy
