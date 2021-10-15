@@ -11,7 +11,7 @@ import (
 
 type PGStorer struct {
 	db   *sqlx.DB
-	stmt *sqlx.Stmt
+	stmt *sqlx.NamedStmt
 }
 
 // var errNoRowsAffected = errors.New("failed to store segment: no rows affected")
@@ -31,15 +31,16 @@ func NewPGStorer(cfg *DbConnection) (*PGStorer, error) {
 		return nil, fmt.Errorf("storer: migration failed: %w", err)
 	}
 
-	stmt, err := db.Preparex(
+	stmt, err := db.PrepareNamed(
 		"INSERT INTO sap_segmentation(address_sap_id, adr_segment, segment_id) " +
-			"VALUES($1,$2,$3) " +
+			"VALUES(:address_sap_id,:adr_segment,:segment_id) " +
 			"ON CONFLICT (address_sap_id) " +
 			"DO UPDATE SET " +
 			"adr_segment=excluded.adr_segment, " +
 			"segment_id=excluded.segment_id")
 	if err != nil {
-		return nil, fmt.Errorf("storer: failed to prepare statement: %w", err)
+		return nil, fmt.Errorf(
+			"storer: failed to prepare named statement: %w", err)
 	}
 
 	return &PGStorer{
@@ -63,7 +64,7 @@ func (s *PGStorer) Store(segs []model.Segmentation) error {
 
 	for i := range segs {
 		seq := segs[i]
-		_, err := s.stmt.Exec(seq.AddressSapID, seq.AdrSegment, seq.SegmentID)
+		_, err := s.stmt.Exec(&seq)
 		if err != nil {
 			return err
 		}
